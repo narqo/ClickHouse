@@ -3,12 +3,13 @@
 # shellcheck disable=SC2086
 # shellcheck disable=SC2024
 
+set -x
+
 # Avoid overlaps with previous runs
 dmesg --clear
 # shellcheck disable=SC1091
 source /setup_export_logs.sh
 
-set -x
 
 # we mount tests folder from repo to /usr/share
 ln -s /usr/share/clickhouse-test/ci/stress.py /usr/bin/stress
@@ -17,12 +18,12 @@ ln -s /usr/share/clickhouse-test/clickhouse-test /usr/bin/clickhouse-test
 # Stress tests and upgrade check uses similar code that was placed
 # in a separate bash library. See tests/ci/stress_tests.lib
 # shellcheck source=../stateless/attach_gdb.lib
-source /attach_gdb.lib
+source /repo/tests/docker_scripts/attach_gdb.lib
 # shellcheck source=../stateless/stress_tests.lib
-source /stress_tests.lib
+source /repo/tests/docker_scripts/stress_tests.lib
 
 # shellcheck disable=SC1091
-source /utils.lib
+source /repo/tests/docker_scripts/utils.lib
 
 install_packages package_folder
 
@@ -55,7 +56,7 @@ export ZOOKEEPER_FAULT_INJECTION=1
 # available for dump via clickhouse-local
 configure
 
-./setup_minio.sh stateless # to have a proper environment
+/repo/tests/docker_scripts/setup_minio.sh stateless # to have a proper environment
 
 config_logs_export_cluster /etc/clickhouse-server/config.d/system_logs_export.yaml
 

@@ -1,16 +1,16 @@
 #!/bin/bash
 
+# fail on errors, verbose and export all env variables
+set -e -x -a
+
 # shellcheck disable=SC1091
 source /setup_export_logs.sh
 
 # shellcheck source=../stateless/stress_tests.lib
-source /stress_tests.lib
+source /repo/tests/docker_scripts/stress_tests.lib
 
 # Avoid overlaps with previous runs
 dmesg --clear
-
-# fail on errors, verbose and export all env variables
-set -e -x -a
 
 MAX_RUN_TIME=${MAX_RUN_TIME:-9000}
 MAX_RUN_TIME=$((MAX_RUN_TIME == 0 ? 9000 : MAX_RUN_TIME))
@@ -42,22 +42,24 @@ if [[ -z "$BUGFIX_VALIDATE_CHECK" ]]; then
     chc --version || exit 1
 fi
 
-ln -s /usr/share/clickhouse-test/clickhouse-test /usr/bin/clickhouse-test
+ln -sf /repo/tests/clickhouse-test /usr/bin/clickhouse-test
+
+export CLICKHOUSE_GRPC_CLIENT="/repo/utils/grpc-client/clickhouse-grpc-client.py"
 
 # shellcheck disable=SC1091
-source /attach_gdb.lib
+source /repo/tests/docker_scripts/attach_gdb.lib
 
 # shellcheck disable=SC1091
-source /utils.lib
+source /repo/tests/docker_scripts/utils.lib
 
 # install test configs
-/usr/share/clickhouse-test/config/install.sh
+/repo/tests/config/install.sh
 
-./setup_minio.sh stateless
+/repo/tests/docker_scripts/setup_minio.sh stateless
 ./mc admin trace clickminio > /test_output/minio.log &
 MC_ADMIN_PID=$!
 
-./setup_hdfs_minicluster.sh
+/repo/tests/docker_scripts/setup_hdfs_minicluster.sh
 
 config_logs_export_cluster /etc/clickhouse-server/config.d/system_logs_export.yaml
 
@@ -274,6 +276,7 @@ function run_tests()
         --print-time
         --no-drop-if-fail
         --capture-client-stacktrace
+        --queries "/repo/tests/queries"
         --test-runs "$NUM_TRIES"
         "${ADDITIONAL_OPTIONS[@]}"
     )
@@ -309,7 +312,7 @@ ls -la ./
 echo "Files in root directory"
 ls -la /
 
-/process_functional_tests_result.py || echo -e "failure\tCannot parse results" > /test_output/check_status.tsv
+/repo/tests/docker_scripts/process_functional_tests_result.py || echo -e "failure\tCannot parse results" > /test_output/check_status.tsv
 
 clickhouse-client -q "system flush logs" ||:
 
